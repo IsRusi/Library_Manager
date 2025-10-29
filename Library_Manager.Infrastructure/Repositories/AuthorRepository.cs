@@ -1,57 +1,59 @@
 ﻿using Library_Manager.Application.Interfaces.IRepository;
 using Library_Manager.Domain.Models;
-
+using Library_Manager.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Library_Manager.Infrastructure.Repositories
 {
     public class AuthorRepository : IAuthorRepository
     {
-        private readonly List<Author> _authors;
+        private readonly LibraryContext _libraryContext;
 
-        public AuthorRepository(DataStore store)
+        public AuthorRepository(LibraryContext context)
         {
-            _authors = store.Authors;
-
-        }
-        public AuthorRepository(List<Author> authors)
-        {
-            _authors = authors;
-
+            _libraryContext = context;
         }
 
-        public Task AddAsync(Author author)
+        public async Task AddAsync(Author author)
         {
-            author.Id = _authors.Any() ? _authors.Max(a => a.Id) + 1 : 0; ;
-            _authors.Add(author);
-            return Task.CompletedTask;
+            //author.Id = await _libraryContext.Authors.AnyAsync() ? await _libraryContext.Authors.MaxAsync(a => a.Id) + 1 : 0; ;
+            await _libraryContext.Authors.AddAsync(author);
+            await _libraryContext.SaveChangesAsync();
         }
 
-        public Task DeleteAsync(int id)
+        public async Task DeleteAsync(int id)
         {
-            int affectedRows = _authors.RemoveAll(author => author.Id == id);
-            return Task.CompletedTask;
+            await _libraryContext.Authors
+                .Where(author => author.Id == id)
+                .ExecuteDeleteAsync();
         }
 
-        public Task<IEnumerable<Author>> GetAllAsync()
-        => Task.FromResult(_authors.AsEnumerable());
+        public async Task<IEnumerable<Author>> GetAllAsync()
+        => await _libraryContext.Authors.ToListAsync();
 
         public async Task<Author> GetByIdAsync(int id)
-        => await Task.FromResult(_authors.FirstOrDefault(author => author.Id == id));
+        => await _libraryContext.Authors
+            .FirstOrDefaultAsync(author => author.Id == id);
 
-        public Task UpdateAsync(Author author)
+        public async Task UpdateAsync(Author author)
         {
-            int authorId = _authors.FindIndex(authorItem => authorItem.Id == author.Id);
-            if (authorId != -1)
-            {
-                _authors[authorId] = author;
-            }
-            return Task.CompletedTask;
+            var existAuthor = await _libraryContext.Authors
+                .Where(tempAuthor => tempAuthor.Id == author.Id)
+                .ExecuteUpdateAsync(setters => setters
+                .SetProperty(tempAuthor => tempAuthor.Name, author.Name)
+                .SetProperty(tempAuthor => tempAuthor.DateOfBirth, author.DateOfBirth));
         }
-        public Task<bool> ExistsAuthorByNameAsync(string name)
-        {
-            bool exists = _authors.Any(author => author.Name == name);
-            return Task.FromResult(exists);
-        }
+        public async Task<Author> GetByAuthorIdWithBooksAsync(int id)
+            => await _libraryContext.Authors
+                .Include(a => a.Books)
+                .FirstOrDefaultAsync(a => a.Id == id);
 
+        //Получить автора не старше 25
+        public async Task<IEnumerable<Author>> GetAuthorsYoungerThanAsync(int authorsAgeLimit)
+           => await _libraryContext.Authors
+            .Where(author => (DateTime.UtcNow.Year-author.DateOfBirth.Year) <= authorsAgeLimit)
+            .ToListAsync();
+        public async Task<bool> ExistsAuthorByNameAsync(string authorsName)
+            => await _libraryContext.Authors.AnyAsync(author => author.Name == authorsName);
     }
 }

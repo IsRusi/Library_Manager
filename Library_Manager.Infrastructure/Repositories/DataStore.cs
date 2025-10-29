@@ -1,22 +1,19 @@
 ﻿using Library_Manager.Application.Interfaces;
 using Library_Manager.Application.Interfaces.IRepository;
-using Library_Manager.Domain.Models;
+using Library_Manager.Infrastructure.Data;
 
 namespace Library_Manager.Infrastructure.Repositories
 {
     public class DataStore : IDataStore
     {
-        public List<Author> Authors { get; } = new();
-        public List<Book> Books { get; } = new();
+        private readonly LibraryContext _libraryContext;
+
+        public DataStore(LibraryContext libraryContext)
+        {
+            _libraryContext = libraryContext;
+        }
 
         public IAuthorRepository AuthorRepository { get; }
         public IBookRepository BookRepository { get; }
-
-        public DataStore()
-        {
-            AuthorRepository = new AuthorRepository(Authors);
-            BookRepository = new BookRepository(Books);
-        }
-
     }
 }

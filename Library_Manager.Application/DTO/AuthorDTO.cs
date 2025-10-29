@@ -4,9 +4,12 @@
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
-        public DateOnly DateOfBirth { get; set; }
-        public AuthorDTO() { }
-        public AuthorDTO(int id, string name, DateOnly dateOfBirth)
+        public DateTime DateOfBirth { get; set; }
+
+        public AuthorDTO()
+        { }
+
+        public AuthorDTO(int id, string name, DateTime dateOfBirth)
         {
             Id = id;
             Name = name;

@@ -1,72 +1,51 @@
-﻿using Library_Manager.Application.DTO;
+﻿using AutoMapper;
+using Library_Manager.Application.DTO;
+using Library_Manager.Application.Extensions;
 using Library_Manager.Application.Interfaces.IRepository;
 using Library_Manager.Application.Interfaces.IService;
 using Library_Manager.Domain.Models;
 using Microsoft.Extensions.Logging;
 using static Library_Manager.Application.Extensions.ValidationExtensionBook;
 
-
 namespace Library_Manager.Application.Service
 {
     public class BookService : IBookService
     {
         private readonly IBookRepository _bookRepository;
-        private readonly IAuthorRepository _authorRepository;
-        private readonly ILogger<AuthorService> _logger;
-        public BookService(IBookRepository bookRepository, IAuthorRepository authorRepository, ILogger<AuthorService> logger)
+        private readonly IMapper _mapper;
+        private readonly ILogger<BookService> _logger;
+
+        public BookService(IBookRepository bookRepository, ILogger<BookService> logger, IMapper mapper)
         {
             _bookRepository = bookRepository;
-            _authorRepository = authorRepository;
             _logger = logger;
+            _mapper = mapper;
         }
 
         public async Task<BookDTO> AddBookAsync(CreateBookDTO createBookDto)
         {
-            try
-            {
                 await createBookDto.Title.ValidateTitleAsync(this);
                 createBookDto.PublishedYear.ValidatePublishedYear();
 
-
-                var newBook = new Book
-                {
-                    Title = createBookDto.Title,
-                    PublishedYear = createBookDto.PublishedYear,
-                    AuthorId = createBookDto.AuthorId
-                };
+                var newBook = _mapper.Map<Book>(createBookDto);
 
                 await _bookRepository.AddAsync(newBook);
-                var bookDto = new BookDTO()
-                {
-                    Id = newBook.Id,
-                    Title = newBook.Title,
-                    PublishedYear = newBook.PublishedYear,
-                    AuthorId = newBook.AuthorId
-                };
+
+                var bookDto = _mapper.Map<BookDTO>(newBook);
+                _logger.LogInformation($"книга успешно добавлена на id:{bookDto.Id}");
                 return bookDto;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-                return new BookDTO();
-            }
 
         }
 
         public async Task DeleteBookByIdAsync(int id)
         {
-            try
-            {
-                id.ValidateId();
+                ValidationExtensionBook.ValidateId(id);
                 var bookToDelete = await _bookRepository.GetByIdAsync(id);
-                var bookDto = new BookDTO(bookToDelete.Id, bookToDelete.Title, bookToDelete.PublishedYear, bookToDelete.AuthorId);
+                var bookDto = _mapper.Map<BookDTO>(bookToDelete);
                 bookDto.ValidateBook();
                 await _bookRepository.DeleteAsync(id);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-            }
+                _logger.LogInformation($"книга успешно удалена по id:{bookDto.Id}");
+           
         }
 
         public async Task<bool> ExistsBookByTitleAsync(string title)
@@ -77,60 +56,63 @@ namespace Library_Manager.Application.Service
 
         public async Task<IEnumerable<BookDTO>> GetAllBooksAsync()
         {
-            var books = await _bookRepository.GetAllAsync();
-
-            var bookDtos = books.Select(book => new BookDTO(
-                book.Id,
-                book.Title,
-                book.PublishedYear,
-                book.AuthorId
-            ));
-            return bookDtos;
+            
+          var books = await _bookRepository.GetAllAsync();
+          var bookDtos = books.Select(book => _mapper.Map<BookDTO>(book));
+          _logger.LogInformation($"успешно получены книги их кол-во:{books.Count()}");
+          return bookDtos;
+            
+        }
+        //получить книги по имени автора
+        public async Task<IEnumerable<BookWithAuthorDTO>> GetBooksByAuthorsNameAsync(string authorName)
+        {
+                await authorName.ValidateNameAsync();
+                var books = await _bookRepository.GetBooksByAuthorsNameAsync(authorName);
+                var bookWithAuthorDto = books.Select(book => _mapper.Map<BookWithAuthorDTO>(book));
+                _logger.LogInformation($"книги по имени автора получены их кол-во:{bookWithAuthorDto.Count()}");
+                return bookWithAuthorDto;
 
         }
+        //Найти книгу с конкретным автором и за конкретный год
+        public async Task<BookWithAuthorDTO> GetBookByAuthorsNameAndYearAsync(string authorName, int year)
+        {
 
-
+                await authorName.ValidateNameAsync();
+                year.ValidatePublishedYear();
+                var book=await _bookRepository.GetBookByAuthorsNameAndYearAsync(authorName, year);
+                var bookDto=_mapper.Map<BookWithAuthorDTO>(book);
+                _logger.LogInformation($"Книга найдена по id:{bookDto.Id}. Автор: {authorName}, Год: {year}, Заголовок: {bookDto.Title}");
+                return bookDto;
+            
+        }
 
         public async Task<BookDTO> GetByIdAsync(int id)
         {
-            try
-            {
-                id.ValidateId();
+
+                ValidationExtensionBook.ValidateId(id);
                 var book = await _bookRepository.GetByIdAsync(id);
-                var bookDto = new BookDTO(book.Id, book.Title, book.PublishedYear, book.AuthorId);
+                var bookDto = _mapper.Map<BookDTO>(book);
                 bookDto.ValidateBook();
-                return bookDto;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-                return new BookDTO();
-            }
+                _logger.LogInformation($"книга найдена по Id: {id}, Заголовок: {bookDto.Title}");
+
+            return bookDto;
+            
         }
 
         public async Task UpdateAsync(int id, UpdateBookDTO updateBook)
         {
-            try
-            {
+           
                 var bookToUpdate = await _bookRepository.GetByIdAsync(id);
-                var bookDto = new BookDTO(bookToUpdate.Id, bookToUpdate.Title, bookToUpdate.PublishedYear, bookToUpdate.AuthorId);
+                var bookDto = _mapper.Map<BookDTO>(bookToUpdate);
                 bookDto.ValidateBook();
 
                 await bookDto.Title.ValidateTitleAsync(this);
                 bookDto.PublishedYear.ValidatePublishedYear();
 
-                bookToUpdate.Title = bookDto.Title;
-                bookToUpdate.PublishedYear = bookDto.PublishedYear;
-                bookToUpdate.AuthorId = bookDto.AuthorId;
+                _mapper.Map(bookDto,bookToUpdate);
 
                 await _bookRepository.UpdateAsync(bookToUpdate);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-            }
+                _logger.LogInformation($"изменение завершёно. Id: {id}, Заголовок: {updateBook.Title}");
         }
-
-
     }
 }

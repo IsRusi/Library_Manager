@@ -1,54 +1,61 @@
 ﻿using Library_Manager.Application.Interfaces.IRepository;
 using Library_Manager.Domain.Models;
+using Library_Manager.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Library_Manager.Infrastructure.Repositories
 {
     public class BookRepository : IBookRepository
     {
-        private readonly List<Book> _books;
+        private readonly LibraryContext _libraryContext;
 
-        public BookRepository(DataStore store)
+        public BookRepository(LibraryContext libraryContext)
         {
-            _books = store.Books;
-        }
-        public BookRepository(List<Book> books)
-        {
-            _books = books;
+            _libraryContext = libraryContext;
         }
 
-        public Task AddAsync(Book book)
+        public async Task AddAsync(Book book)
         {
-            book.Id = _books.Any() ? _books.Max(a => a.Id) + 1 : 0; ;
-            _books.Add(book);
-            return Task.CompletedTask;
+            await _libraryContext.Books.AddAsync(book);
+            await _libraryContext.SaveChangesAsync();
         }
 
-        public Task DeleteAsync(int id)
+        public async Task DeleteAsync(int id)
         {
-            _books.RemoveAll(book => book.Id == id);
-            return Task.CompletedTask;
+            await _libraryContext.Books
+                .Where(book => book.Id == id)
+                .ExecuteDeleteAsync();
         }
 
-        public Task<IEnumerable<Book>> GetAllAsync()
-            => Task.FromResult(_books.AsEnumerable());
+        public async Task<IEnumerable<Book>> GetAllAsync()
+            => await _libraryContext.Books.ToListAsync();
 
-        public Task<Book> GetByIdAsync(int id)
-            => Task.FromResult(_books.FirstOrDefault(book => book.Id == id));
+        public async Task<Book> GetByIdAsync(int id)
+            => await _libraryContext.Books.FirstOrDefaultAsync(book => book.Id == id);
 
-        public Task UpdateAsync(Book book)
+        public async Task UpdateAsync(Book book)
         {
-            int index = _books.FindIndex(b => b.Id == book.Id);
-            if (index != -1)
-            {
-                _books[index] = book;
-            }
-            return Task.CompletedTask;
+            await _libraryContext.Books.Where(updateBook => updateBook.Id == book.Id)
+                .ExecuteUpdateAsync(setters => setters
+                .SetProperty(updateBook => updateBook.Title, book.Title)
+                .SetProperty(updateBook => updateBook.PublishedYear, book.PublishedYear)
+                .SetProperty(updateBook => updateBook.AuthorId, book.AuthorId)
+                );
         }
+
+        //получить книги по имени автора
+        public async Task<IEnumerable<Book>> GetBooksByAuthorsNameAsync(string authorName)
+           => await _libraryContext.Books
+                .Include(book => book.Author)
+                .Where(book=>book.Author.Name.StartsWith(authorName))
+                .ToListAsync();
+        //Найти книгу с конкретным автором и за конкретный год
+        public async Task<Book> GetBookByAuthorsNameAndYearAsync(string authorName, int year)
+        => await _libraryContext.Books
+            .Include(book => book.Author)
+            .FirstOrDefaultAsync(book=>book.Author.Name.StartsWith(authorName) && book.PublishedYear.Equals(year));
 
         public Task<bool> ExistsBookByTitleAsync(string title)
-        => Task.FromResult(_books.Any(b => b.Title == title));
-
-
-
+        => Task.FromResult(_libraryContext.Books.Any(b => b.Title == title));
     }
 }

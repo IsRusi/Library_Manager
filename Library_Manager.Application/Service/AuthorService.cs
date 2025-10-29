@@ -1,4 +1,6 @@
-﻿using Library_Manager.Application.DTO;
+﻿using AutoMapper;
+using Library_Manager.Application.DTO;
+using Library_Manager.Application.Extensions;
 using Library_Manager.Application.Interfaces.IRepository;
 using Library_Manager.Application.Interfaces.IService;
 using Library_Manager.Domain.Models;
@@ -11,63 +13,50 @@ namespace Library_Manager.Application.Service
     {
         private readonly ILogger<AuthorService> _logger;
         private readonly IAuthorRepository _authorRepository;
-        public AuthorService(IAuthorRepository authorRepository, ILogger<AuthorService> logger)
+        private readonly IMapper _mapper;
+
+        public AuthorService(IAuthorRepository authorRepository, ILogger<AuthorService> logger, IMapper mapper)
         {
             _authorRepository = authorRepository;
             _logger = logger;
+            _mapper = mapper;
         }
 
         public async Task<AuthorDTO> AddAuthorAsync(CreateAuthorDTO createAuthorDTO)
         {
-            try
-            {
+            await createAuthorDTO.Name.ValidateNameAsync(this);
+            createAuthorDTO.DateOfBirth.ValidateDate();
 
-                await createAuthorDTO.Name.ValidateNameAsync(this);
-                createAuthorDTO.DateOfBirth.ValidateDate();
+            var author = _mapper.Map<Author>(createAuthorDTO);
+            var authorDto = _mapper.Map<AuthorDTO>(createAuthorDTO);
 
+            await _authorRepository.AddAsync(author);
+            _logger.LogInformation($"автор {author.Name} добавлен. его id: {author.Id})");
 
-                var author = new Author()
-                {
-                    Name = createAuthorDTO.Name,
-                    DateOfBirth = createAuthorDTO.DateOfBirth
-                };
-                var authorDto = new AuthorDTO()
-                {
-                    Name = createAuthorDTO.Name,
-                    DateOfBirth = createAuthorDTO.DateOfBirth
-                };
-                await _authorRepository.AddAsync(author);
-
-                return await Task.FromResult(authorDto);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-                return new AuthorDTO();
-            }
+            return authorDto;
         }
 
         public async Task DeleteAuthorByIdAsync(int id)
         {
-            try
-            {
-                id.ValidateId();
-                var authorToDelete = await _authorRepository.GetByIdAsync(id);
-                var authorDto = new AuthorDTO()
-                {
-                    Id = authorToDelete.Id,
-                    Name = authorToDelete.Name,
-                    DateOfBirth = authorToDelete.DateOfBirth
-                };
+
+                ValidationExtensionAuthor.ValidateId(id);
+                var authorToDelete = await _authorRepository.GetByAuthorIdWithBooksAsync(id);
+                authorToDelete.ValidateAuthorsBooks();
+                var authorDto = _mapper.Map<AuthorDTO>(authorToDelete);
                 authorDto.ValidateAuthor();
+
                 await _authorRepository.DeleteAsync(id);
+                _logger.LogInformation($"автор удалён. Id: {id}");
+        }
 
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
+        public async Task<IEnumerable<AuthorDTO>> GetAuthorsYoungerThanAsync(int authorsAgeLimit)
+        {
 
-            }
+                authorsAgeLimit.ValidateAge();
+                var authors = await _authorRepository.GetAuthorsYoungerThanAsync(authorsAgeLimit);
+                var authorsDto = authors.Select(author => _mapper.Map<AuthorDTO>(author));
+                _logger.LogInformation($"метод успешно выполнен количество полученных авторов: {authorsDto.Count()}");
+                return authorsDto;
         }
 
         public async Task<bool> ExistsAuthorByNameAsync(string authorName)
@@ -80,58 +69,34 @@ namespace Library_Manager.Application.Service
         {
             var authors = await _authorRepository.GetAllAsync();
 
-            var authorsDtos = authors.Select(author => new AuthorDTO(
-                author.Id,
-                author.Name,
-                author.DateOfBirth
-            ));
+            var authorsDtos = authors.Select(author => _mapper.Map<AuthorDTO>(author));
             return authorsDtos;
         }
 
-
         public async Task<AuthorDTO> GetByIdAsync(int id)
         {
-            try
-            {
-                id.ValidateId();
+
+                ValidationExtensionAuthor.ValidateId(id);
                 var author = await _authorRepository.GetByIdAsync(id);
-                var authorDto = new AuthorDTO(
-                        author.Id,
-                        author.Name,
-                        author.DateOfBirth);
+                var authorDto = _mapper.Map<AuthorDTO>(author);
                 authorDto.ValidateAuthor();
+                _logger.LogInformation($"автор {author.Name} получен с id:{id}");
                 return await Task.FromResult(authorDto);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-                return new AuthorDTO();
-            }
+                
         }
 
         public async Task UpdateAsync(int id, UpdateAuthorDTO updateAuthor)
         {
-            try
-            {
                 var authorToUpdate = await _authorRepository.GetByIdAsync(id);
-                var authorDto = new AuthorDTO() { Id = authorToUpdate.Id, Name = authorToUpdate.Name, DateOfBirth = authorToUpdate.DateOfBirth };
+                var authorDto = _mapper.Map<AuthorDTO>(authorToUpdate);
                 authorDto.ValidateAuthor();
 
                 await updateAuthor.Name.ValidateNameAsync(this);
                 updateAuthor.DateOfBirth.ValidateDate();
 
-                authorToUpdate.Name = updateAuthor.Name;
-                authorToUpdate.DateOfBirth = updateAuthor.DateOfBirth;
-
+                _mapper.Map(updateAuthor, authorToUpdate);
+                _logger.LogInformation($"автор изменён id:{id}");
                 await _authorRepository.UpdateAsync(authorToUpdate);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-                
-            }
         }
-
-
     }
 }

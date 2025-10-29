@@ -15,7 +15,6 @@ namespace Library_Manager.API.Controllers
             _authorService = authorService;
         }
 
-
         [HttpGet]
         public async Task<IActionResult> GetAuthors()
         {
@@ -23,14 +22,21 @@ namespace Library_Manager.API.Controllers
             return Ok(authors);
         }
 
-
         [HttpGet("{id}")]
         public async Task<IActionResult> GetAuthor(int id)
         {
             var author = await _authorService.GetByIdAsync(id);
             return Ok(author);
         }
-
+        //        Найти книгу с конкретным автором и за конкретную дату.
+        //Получить книги автора.
+        //Найти автора с возрастом не старше 25;
+        [HttpGet("by-age")]
+        public async Task<IActionResult> GetAuthorsYoungerThanAsync(int authorAgeLimit)
+        {
+            var author = await _authorService.GetAuthorsYoungerThanAsync(authorAgeLimit);
+            return Ok(author);
+        }
         [HttpPost]
         public async Task<IActionResult> CreateAuthor([FromBody] CreateAuthorDTO createdAuthorDTO)
         {
@@ -38,20 +44,18 @@ namespace Library_Manager.API.Controllers
             return CreatedAtAction(nameof(GetAuthor), new { id = created.Id }, created);
         }
 
-
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateAuthor(int id, [FromBody] UpdateAuthorDTO updateAuthorDTO)
+        public async Task<IActionResult> UpdateAuthor(int id, [FromBody] UpdateAuthorDTO inputUpdateAuthorDTO)
         {
-            var updateDto = new UpdateAuthorDTO
+            var updateAuthorDTO = new UpdateAuthorDTO
             {
-                Name = updateAuthorDTO.Name,
-                DateOfBirth = updateAuthorDTO.DateOfBirth
+                Name = inputUpdateAuthorDTO.Name,
+                DateOfBirth = inputUpdateAuthorDTO.DateOfBirth
             };
 
-            await _authorService.UpdateAsync(id, updateDto);
+            await _authorService.UpdateAsync(id, updateAuthorDTO);
             return NoContent();
         }
-
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAuthor(int id)

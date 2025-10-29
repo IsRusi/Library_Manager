@@ -3,6 +3,6 @@
     public class UpdateAuthorDTO
     {
         public string Name { get; set; } = string.Empty;
-        public DateOnly DateOfBirth { get; set; }
+        public DateTime DateOfBirth { get; set; }
     }
 }

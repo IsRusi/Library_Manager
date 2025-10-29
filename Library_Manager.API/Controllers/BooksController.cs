@@ -14,9 +14,19 @@ namespace Library_Manager.API.Controllers
         {
             _bookService = bookService;
         }
-
-
-        [HttpGet]
+        [HttpGet("by-author-and-year")]
+        public async Task<IActionResult> GetBookByAuthorsNameAndYearAsync([FromQuery]string authorsName, [FromQuery] int authorsYear)
+        {
+            var books = await _bookService.GetBookByAuthorsNameAndYearAsync(authorsName,authorsYear);
+            return Ok(books);
+        }
+        [HttpGet("by-author")]
+        public async Task<IActionResult> GetBooksByAuthorsNameAsync([FromQuery] string authorsName)
+        {
+            var books = await _bookService.GetBooksByAuthorsNameAsync(authorsName);
+            return Ok(books);
+        }
+        [HttpGet("all-books")]
         public async Task<IActionResult> GetBooks()
         {
             var books = await _bookService.GetAllBooksAsync();
@@ -29,7 +39,6 @@ namespace Library_Manager.API.Controllers
             var book = await _bookService.GetByIdAsync(id);
             return Ok(book);
         }
-
 
         [HttpPost]
         public async Task<IActionResult> CreateBook([FromBody] CreateBookDTO createDto)

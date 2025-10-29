@@ -3,6 +3,12 @@
     public class CreateAuthorDTO
     {
         public string Name { get; set; }
-        public DateOnly DateOfBirth { get; set; }
+        public DateTime DateOfBirth { get; set; }
+        public CreateAuthorDTO() { }
+        public CreateAuthorDTO(string name, DateTime dateOfBirth)
+        {
+            Name = name;
+            DateOfBirth = dateOfBirth;
+        }
     }
 }
