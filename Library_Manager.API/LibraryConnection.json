@@ -1,5 +1,5 @@
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=O:\\programming\\Courses\\LibraryManager\\Library_Manager.API\\LibraryManager.mdf;Integrated Security=True"
+    "DefaultConnection": "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=...;Integrated Security=True"
   }
 }
